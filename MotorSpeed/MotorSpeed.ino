@@ -5,7 +5,7 @@
 const int IR_SENSOR = 8; //IR sensor input pin (must be INT0)
 volatile byte revolutions;
 unsigned int rpm;
-unsigned long timeold;
+volatile unsigned long timeold;
 
 void setup() {
   Debug.begin( 19200 );
@@ -17,12 +17,12 @@ void setup() {
 }
 
 void loop() {
-   if (revolutions >= 20) { 
+   if (revolutions >= 10) { 
      //update RPM every 20 counts, increase this for better RPM resolution,
      //decrease for faster update
      //rpm = 60*1000/(millis() - timeold)*revolutions;
      rpm = millis() - timeold;
-     timeold = millis();
+     //timeold = millis();
      revolutions = 0;
      Debug.println(rpm, DEC);
    }
@@ -31,5 +31,8 @@ void loop() {
  void rpmInterrupt()
  {
    //each rotation, this interrupt function is run
+   if(revolutions == 0) {
+     timeold = millis();
+   }
    revolutions++;
  }
