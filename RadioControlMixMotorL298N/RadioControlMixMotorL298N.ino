@@ -9,6 +9,7 @@ const int PULSE_MAX_X = 1834; //highest radio control pulse with Y
 const int PULSE_MIN_Y = 1124; //lowest radio control pulse with Y
 const int PULSE_MAX_Y = 1751; //highest radio control pulse with Y
 const int STOP_LIMIT = 40;    //interval in which motors shall not move
+const int HEART_BEAT = 13;     // LED showing that I am alive
 
 // Motor 1
 const int DIR1PINA = 2;
@@ -20,10 +21,12 @@ const int DIR1PINB = 4;
 const int DIR2PINB = 5;
 const int SPEEDPINB = 10; // Needs to be a PWM pin to be able to control motor speed
 
+int heartBeatState = LOW; // LED showing that I am alive
+
 // the setup routine runs once when you press reset:
 void setup() {
   // initialize serial communication at 9600 bits per second
-  Serial.begin(9600);
+  //Serial.begin(9600);
   // make the radio input pin an input
   pinMode(RADIO_INPUT_X, INPUT);
   pinMode(RADIO_INPUT_Y, INPUT);
@@ -34,6 +37,8 @@ void setup() {
   pinMode(DIR1PINB,OUTPUT);
   pinMode(DIR2PINB,OUTPUT);
   pinMode(SPEEDPINB,OUTPUT);
+  // heart beat
+  pinMode(HEART_BEAT,OUTPUT);
 }
 
 // the loop routine runs over and over again forever:
@@ -57,7 +62,8 @@ void loop() {
     // no signal -> stop!
     stopMotors();
   }
-  delay(700);
+  heartBeat();
+  //delay(700);
 }
 
 int getRadioInput(int &X, int &Y) {
@@ -92,8 +98,8 @@ void mix(int X, int Y, int &lMotor, int &rMotor) {
   //and apply it to the mixed values
   lMotor = constrain(leftMotor/maxMotorScale,-255,255);
   rMotor = constrain(rightMotor/maxMotorScale,-255,255);
-  Serial.print("lMotor: "); Serial.println(lMotor, DEC);
-  Serial.print("rMotor: "); Serial.println(rMotor, DEC);
+  //Serial.print("lMotor: "); Serial.println(lMotor, DEC);
+  //Serial.print("rMotor: "); Serial.println(rMotor, DEC);
 }
 
 void setMotorSpeed(int lMotor, int rMotor) {
@@ -130,5 +136,13 @@ void setMotorSpeed(int lMotor, int rMotor) {
 void stopMotors() {
   analogWrite(SPEEDPINA, 0);
   analogWrite(SPEEDPINB, 0);
+}
+
+void heartBeat() {
+  if (heartBeatState == LOW)
+    heartBeatState = HIGH;
+  else
+    heartBeatState = LOW;
+  digitalWrite(HEART_BEAT, heartBeatState);  
 }
 
