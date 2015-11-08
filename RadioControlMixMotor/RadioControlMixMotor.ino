@@ -14,7 +14,7 @@ const int PULSE_MIN_X = 1141; //lowest radio control pulse with Y
 const int PULSE_MAX_X = 1834; //highest radio control pulse with Y
 const int PULSE_MIN_Y = 1124; //lowest radio control pulse with Y
 const int PULSE_MAX_Y = 1751; //highest radio control pulse with Y
-const int STOP_LIMIT = 20;    //interval in which motors shall not move
+const int STOP_LIMIT = 40;    //interval in which motors shall not move
 
 // the setup routine runs once when you press reset:
 void setup() {
@@ -90,9 +90,9 @@ void setMotorSpeed(int lMotor, int rMotor) {
     motor4.setSpeed(abs(lMotor));
   }
   if(lMotor > 0) {
-    motor4.run(FORWARD);
-  } else {
     motor4.run(BACKWARD);
+  } else {
+    motor4.run(FORWARD);
   }
   if(abs(rMotor) < STOP_LIMIT) {
     motor3.setSpeed(0);
@@ -100,9 +100,9 @@ void setMotorSpeed(int lMotor, int rMotor) {
     motor3.setSpeed(abs(rMotor));
   }
   if(rMotor > 0) {
-    motor3.run(FORWARD);
-  } else {
     motor3.run(BACKWARD);
+  } else {
+    motor3.run(FORWARD);
   }
 }
 
