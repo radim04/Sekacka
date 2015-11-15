@@ -21,8 +21,8 @@ const int DIR2PINB = 5;
 const int SPEEDPINB = 10; // Needs to be a PWM pin to be able to control motor speed
 
 // Mowing Motor
-const int IR_SENSOR = 6; //IR sensor input pin 
-const int MOW_MOTOR_PWM = 11; //PWM motor output
+const int IR_SENSOR = 12; //IR sensor input pin 
+const int MOW_MOTOR_PWM = 6; //PWM motor output
 const int MAX_INPUT = 1023; //PID input if mowing motor doesn't move
 
 byte mowingMotorPWM = 0;
@@ -64,16 +64,18 @@ void loop() {
     //Serial.print("L:"); Serial.print(lMotor, DEC);
     //Serial.print("  R:"); Serial.print(rMotor, DEC); Serial.println("|");
     setMotorSpeed(lMotor, rMotor);
+    // mowing motor control
+    int mowingMotorSpeed = getMowingMotorSpeed();
+    //Serial.print("Duration:"); 
+    Serial.print(mowingMotorSpeed, DEC); Serial.print(" ");
+    mowingMotorPWM = mowingMotorPWM + 0.02*(targetMowingMotorSpeed - mowingMotorSpeed);
+    Serial.println(mowingMotorPWM, DEC);
+    //analogWrite(MOW_MOTOR_PWM, 0);
+    analogWrite(MOW_MOTOR_PWM, mowingMotorPWM);
   } else {
     // no signal -> stop!
     stopMotors();
   }
-  /*
-  // mowing motor control
-  int mowingMotorSpeed = getMowingMotorSpeed();
-  mowingMotorPWM = mowingMotorPWM + 0.05*(targetMowingMotorSpeed - mowingMotorSpeed);
-  analogWrite(MOW_MOTOR_PWM, mowingMotorPWM);
-  */
   //delay(700);
 }
 
@@ -109,8 +111,8 @@ void mix(int X, int Y, int &lMotor, int &rMotor) {
   //and apply it to the mixed values
   lMotor = constrain(leftMotor/maxMotorScale,-255,255);
   rMotor = constrain(rightMotor/maxMotorScale,-255,255);
-  Serial.print("lMotor: "); Serial.println(lMotor, DEC);
-  Serial.print("rMotor: "); Serial.println(rMotor, DEC);
+  //Serial.print("lMotor: "); Serial.println(lMotor, DEC);
+  //Serial.print("rMotor: "); Serial.println(rMotor, DEC);
 }
 
 void setMotorSpeed(int lMotor, int rMotor) {
@@ -147,6 +149,7 @@ void setMotorSpeed(int lMotor, int rMotor) {
 void stopMotors() {
   analogWrite(SPEEDPINA, 0);
   analogWrite(SPEEDPINB, 0);
+  analogWrite(MOW_MOTOR_PWM, 0);
 }
 
 int getMowingMotorSpeed() {
