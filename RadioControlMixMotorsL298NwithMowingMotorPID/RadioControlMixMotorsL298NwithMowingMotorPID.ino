@@ -1,5 +1,5 @@
 /*
- Reads radio control input, mixes X and Y to MotorL and MotorR
+ Reads radio control input, mixes X and Y to MotorL and MotorR and controls speed of mowing motor
  */
 
 const int RADIO_INPUT_X = A0; //radio control input X
@@ -21,12 +21,15 @@ const int DIR2PINB = 5;
 const int SPEEDPINB = 10; // Needs to be a PWM pin to be able to control motor speed
 
 // Mowing Motor
-const int IR_SENSOR = 12; //IR sensor input pin 
+const int IR_SENSOR = 12; //IR sensor input pin
 const int MOW_MOTOR_PWM = 6; //PWM motor output
 const int MAX_INPUT = 1023; //PID input if mowing motor doesn't move
-
-byte mowingMotorPWM = 0;
-int targetMowingMotorSpeed = 500;
+byte mowingMotorPWM = 255;
+double targetMowingMotorSpeed = 500;
+double inputPID = 0;
+double lastInputPID = 0;
+double iTermPID = 0;
+double outputPID;
 
 // the setup routine runs once when you press reset:
 void setup() {
@@ -38,25 +41,25 @@ void setup() {
   // IR speed sensor for mowing motor
   pinMode(IR_SENSOR, INPUT);
   // motors
-  pinMode(DIR1PINA,OUTPUT);
-  pinMode(DIR2PINA,OUTPUT);
-  pinMode(SPEEDPINA,OUTPUT);
-  pinMode(DIR1PINB,OUTPUT);
-  pinMode(DIR2PINB,OUTPUT);
-  pinMode(SPEEDPINB,OUTPUT);
-  pinMode(MOW_MOTOR_PWM,OUTPUT);
+  pinMode(DIR1PINA, OUTPUT);
+  pinMode(DIR2PINA, OUTPUT);
+  pinMode(SPEEDPINA, OUTPUT);
+  pinMode(DIR1PINB, OUTPUT);
+  pinMode(DIR2PINB, OUTPUT);
+  pinMode(SPEEDPINB, OUTPUT);
+  pinMode(MOW_MOTOR_PWM, OUTPUT);
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
   // get radio input
   int radioX = 0;
-  int radioY = 0; 
+  int radioY = 0;
   int rc = 0;
   int lMotor = 0;
   int rMotor = 0;
   rc = getRadioInput(radioX, radioY);
-  if(rc == 0) {
+  if (rc == 0) {
     // print out the pulse length
     //Serial.print("X:"); Serial.print(radioX, DEC);
     //Serial.print("  Y:"); Serial.print(radioY, DEC); Serial.println("|");
@@ -65,11 +68,14 @@ void loop() {
     //Serial.print("  R:"); Serial.print(rMotor, DEC); Serial.println("|");
     setMotorSpeed(lMotor, rMotor);
     // mowing motor control
-    int mowingMotorSpeed = getMowingMotorSpeed();
-    //Serial.print("Duration:"); 
-    Serial.print(mowingMotorSpeed, DEC); Serial.print(" ");
-    mowingMotorPWM = constrain(mowingMotorPWM + 0.02*(targetMowingMotorSpeed - mowingMotorSpeed), 0, 255);
-    Serial.println(mowingMotorPWM, DEC);
+    //int mowingMotorSpeed = getMowingMotorSpeed();
+    //Serial.print("Duration:");
+    //Serial.print(mowingMotorSpeed, DEC); Serial.print(" ");
+    //mowingMotorPWM = constrain(mowingMotorPWM + 0.02*(targetMowingMotorSpeed - mowingMotorSpeed), 0, 255);
+    //inputPID = mowingMotorSpeed;
+    //computePID(&inputPID, &outputPID, &targetMowingMotorSpeed, 0.2, 0.5, 0.1, 0, 255, &lastInputPID, &iTermPID);
+    //mowingMotorPWM = constrain(outputPID, 0, 255);
+    //Serial.println(mowingMotorPWM, DEC);
     //analogWrite(MOW_MOTOR_PWM, 0);
     analogWrite(MOW_MOTOR_PWM, mowingMotorPWM);
   } else {
@@ -79,11 +85,30 @@ void loop() {
   //delay(700);
 }
 
+void computePID(double* Input, double* Output, double* Setpoint,
+                double Kp, double Ki, double Kd, byte OutMin, byte OutMax, 
+                double* LastInput, double* ITerm) {
+  //compute all error variables
+  double input = *Input;
+  double error = *Setpoint - input;
+  *ITerm += (Ki * error);
+  if (*ITerm > OutMax) *ITerm = OutMax;
+  else if (*ITerm < OutMin) *ITerm = OutMin;
+  double dInput = (input - *LastInput);
+  //compute PID Output
+  double output = Kp * error + *ITerm - Kd * dInput;
+  if (output > OutMax) output = OutMax;
+  else if (output < OutMin) output = OutMin;
+  *Output = output;
+  //remember for next time
+  *LastInput = input;
+}
+
 int getRadioInput(int &X, int &Y) {
   unsigned long duration;
   duration = pulseIn(RADIO_INPUT_X, HIGH);
   //Serial.print("DurationX:"); Serial.print(duration, DEC);
-  if(duration == 0) {
+  if (duration == 0) {
     return -1; // radio off -> no pulse
   } else {
     duration = constrain(duration, PULSE_MIN_X, PULSE_MAX_X);
@@ -98,31 +123,31 @@ int getRadioInput(int &X, int &Y) {
 
 void mix(int X, int Y, int &lMotor, int &rMotor) {
   //mix throttle and direction
-  int leftMotor = Y+X;
-  int rightMotor = Y-X;
-  //calculate the scale of the results 
-  float leftMotorScale =  leftMotor/255.0;
+  int leftMotor = Y + X;
+  int rightMotor = Y - X;
+  //calculate the scale of the results
+  float leftMotorScale =  leftMotor / 255.0;
   leftMotorScale = abs(leftMotorScale);
-  float rightMotorScale =  rightMotor/255.0;
+  float rightMotorScale =  rightMotor / 255.0;
   rightMotorScale = abs(rightMotorScale);
   //choose the max scale value if it is above 1
-  float maxMotorScale = max(leftMotorScale,rightMotorScale);
-  maxMotorScale = max(1,maxMotorScale);
+  float maxMotorScale = max(leftMotorScale, rightMotorScale);
+  maxMotorScale = max(1, maxMotorScale);
   //and apply it to the mixed values
-  lMotor = constrain(leftMotor/maxMotorScale,-255,255);
-  rMotor = constrain(rightMotor/maxMotorScale,-255,255);
+  lMotor = constrain(leftMotor / maxMotorScale, -255, 255);
+  rMotor = constrain(rightMotor / maxMotorScale, -255, 255);
   //Serial.print("lMotor: "); Serial.println(lMotor, DEC);
   //Serial.print("rMotor: "); Serial.println(rMotor, DEC);
 }
 
 void setMotorSpeed(int lMotor, int rMotor) {
-  if(abs(rMotor) < STOP_LIMIT) {
+  if (abs(rMotor) < STOP_LIMIT) {
     analogWrite(SPEEDPINA, 0);
     digitalWrite(DIR1PINA, LOW);
     digitalWrite(DIR2PINA, LOW);
   } else {
     analogWrite(SPEEDPINA, abs(rMotor));
-    if(rMotor > 0) {
+    if (rMotor > 0) {
       digitalWrite(DIR1PINA, HIGH);
       digitalWrite(DIR2PINA, LOW);
     } else {
@@ -130,13 +155,13 @@ void setMotorSpeed(int lMotor, int rMotor) {
       digitalWrite(DIR2PINA, HIGH);
     }
   }
-  if(abs(lMotor) < STOP_LIMIT) {
+  if (abs(lMotor) < STOP_LIMIT) {
     analogWrite(SPEEDPINB, 0);
     digitalWrite(DIR1PINB, LOW);
     digitalWrite(DIR2PINB, LOW);
   } else {
     analogWrite(SPEEDPINB, abs(lMotor));
-    if(lMotor > 0) {
+    if (lMotor > 0) {
       digitalWrite(DIR1PINB, HIGH);
       digitalWrite(DIR2PINB, LOW);
     } else {
@@ -155,7 +180,7 @@ void stopMotors() {
 int getMowingMotorSpeed() {
   unsigned long duration = pulseIn(IR_SENSOR, HIGH);
   //Serial.print("Duration:"); Serial.println(duration, DEC);
-  if(duration == 0) {
+  if (duration == 0) {
     return 0;
   } else {
     return constrain(MAX_INPUT - duration, 0, MAX_INPUT);
